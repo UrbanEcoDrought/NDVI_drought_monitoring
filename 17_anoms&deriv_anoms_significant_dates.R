@@ -56,8 +56,8 @@ yrsderivs_merge$date <- as.Date(yrsderivs_merge$yday, origin = paste0(yrsderivs_
 yrsderivs_merge <- yrsderivs_merge %>% arrange(type,year,date)
 
 # find significant event dates --------------------------------------------
-USDM_dates <- data.frame(USDM_start = as.Date(c("2005-04-26","2012-06-12","2023-05-23")),
-                         USDM_end = as.Date(c("2005-12-31", "2012-12-31", "2023-09-26")),
+USDM_dates <- data.frame(USDM_start = as.Date(c("2005-06-14","2012-06-26","2023-05-30")),
+                         USDM_end = as.Date(c("2005-12-31", "2012-09-03", "2023-07-17")),
                          year = c(2005,2012,2023))
                               
 
