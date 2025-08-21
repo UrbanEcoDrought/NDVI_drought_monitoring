@@ -10,8 +10,9 @@ pathShare <- file.path(path.google, "../Shared drives/Urban Ecological Drought/M
 pathShare2 <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/tables")
 pathShare3 <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/ESA_2025_NDVI_Monitoring_Poster")
 ######################
+usdmcat <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_categorical_county_data_2001-2024.csv")) #usdm chicago region cumulative data
 
-usdmcum <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_county_data_2001-2024.csv")) #usdm chicago region cumulative data
+#usdmcum <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_county_data_2001-2024.csv")) #usdm chicago region cumulative data
 #grow_norms <-read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_growing_season_norms.csv")) #normals
 #growyrs <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_growing_season_yrs.csv")) #individual years
 
@@ -35,10 +36,10 @@ coArea <- c(3917450609.094, 1494102678.262, 4472919440.23, 1571636669.879, 24549
 names(coArea) <- c("Will County","Kendall County","Cook County","DuPage County","Kane County","Lake County","McHenry County")
 coWeights <- coArea/sum(coArea)
 
-usdmcum$County <- factor(usdmcum$County, levels = c("Will County","Kendall County","Cook County","DuPage County","Kane County","Lake County","McHenry County"))
+usdmcat$County <- factor(usdmcat$County, levels = c("Will County","Kendall County","Cook County","DuPage County","Kane County","Lake County","McHenry County"))
 usdm_county <- data.frame()
-for (county in unique(usdmcum$County)){
-  usdmInd <- usdmcum[usdmcum$County==county,]
+for (county in unique(usdmcat$County)){
+  usdmInd <- usdmcat[usdmcat$County==county,]
   usdmInd$None <- usdmInd$None*coWeights[county]
   usdmInd$D0 <- usdmInd$D0*coWeights[county]
   usdmInd$D1 <- usdmInd$D1*coWeights[county]
@@ -48,7 +49,7 @@ for (county in unique(usdmcum$County)){
   usdm_county <- rbind(usdm_county, usdmInd)
 }
 
-usdmcum <- usdm_county %>% group_by(ValidStart, ValidEnd) %>%
+usdmcat <- usdm_county %>% group_by(ValidStart, ValidEnd) %>%
   summarise_at(vars(None, D0, D1, D2, D3, D4),
                sum) %>%
   ungroup()
@@ -56,7 +57,7 @@ usdmcum <- usdm_county %>% group_by(ValidStart, ValidEnd) %>%
 ######################
 #loop to add date and deviation column
 ######################
-usdmcum$date <- as.Date(usdmcum$ValidStart)
+usdmcat$date <- as.Date(usdmcat$ValidStart)
 
 df <- data.frame()
 for (LC in unique(growyrs$type)){
@@ -73,9 +74,9 @@ for (LC in unique(growyrs$type)){
 }
 
 
-#grow_subset <- df[df$date %in% usdmcum$start,]
+#grow_subset <- df[df$date %in% usdmcat$start,]
 
-grow_merge <- merge(x=df, y=usdmcum, by="date", all.x=F, all.y=T)
+grow_merge <- merge(x=df, y=usdmcat, by="date", all.x=F, all.y=T)
 
 grow_merge <- grow_merge %>% pivot_longer(cols = c(11:16), names_to = "severity", values_to = "percentage") #combining index columns
 
@@ -102,11 +103,17 @@ anovUrbLow <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-l
 tukeyurblow <- TukeyHSD(anovUrbLow, conf.level=0.95)
 urblowletters <- multcompLetters4(anovUrbLow, tukeyurblow)
 urblowletters <- as.data.frame.list(urblowletters$severity)
+urblowletters <- rownames_to_column(urblowletters, "type")
+urblowletters$type <- factor(urblowletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urblowletters <- arrange(urblowletters, type)
 
 anovcrop <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="crop",])
 tukeycrop <- TukeyHSD(anovcrop, conf.level=0.95)
 cropletters <- multcompLetters4(anovcrop, tukeycrop)
 cropletters <- as.data.frame.list(cropletters$severity)
+cropletters <- rownames_to_column(cropletters, "type")
+cropletters$type <- factor(cropletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+cropletters <- arrange(cropletters, type)
 
 anovForest <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="forest",])
 tukeyforest <- TukeyHSD(anovForest, conf.level=0.95)
@@ -125,21 +132,33 @@ anovgrass <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="grasslan
 tukeygrass <- TukeyHSD(anovgrass, conf.level=0.95)
 grassletters <- multcompLetters4(anovgrass, tukeygrass)
 grassletters <- as.data.frame.list(grassletters$severity)
+grassletters <- rownames_to_column(grassletters, "type")
+grassletters$type <- factor(grassletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+grassletters <- arrange(grassletters, type)
 
 anovurbmed <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-medium",])
 tukeyurbmed <- TukeyHSD(anovurbmed, conf.level=0.95)
 urbmedletters <- multcompLetters4(anovurbmed, tukeyurbmed)
 urbmedletters <- as.data.frame.list(urbmedletters$severity)
+urbmedletters <- rownames_to_column(urbmedletters, "type")
+urbmedletters$type <- factor(urbmedletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urbmedletters <- arrange(urbmedletters, type)
 
 anovurbhi <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-high",])
 tukeyurbhi <- TukeyHSD(anovurbhi, conf.level=0.95)
 urbhiletters <- multcompLetters4(anovurbhi, tukeyurbhi)
 urbhiletters <- as.data.frame.list(urbhiletters$severity)
+urbhiletters <- rownames_to_column(urbhiletters, "type")
+urbhiletters$type <- factor(urbhiletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urbhiletters <- arrange(urbhiletters, type)
 
 anovurbop <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-open",])
 tukeyurbop <- TukeyHSD(anovurbop, conf.level=0.95)
 urbopletters <- multcompLetters4(anovurbop, tukeyurbop)
 urbopletters <- as.data.frame.list(urbopletters$severity)
+urbopletters <- rownames_to_column(urbopletters, "type")
+urbopletters$type <- factor(urbopletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urbopletters <- arrange(urbopletters, type)
 
 grow_sum <- group_by(grow_merge, type, severity) %>% 
   summarise(mean_anom=mean(deviation),sd=sd(deviation))
@@ -222,3 +241,18 @@ ggplot()+ #boxplots by drought category for each LC type
                                         plot.caption = element_text(hjust=0,vjust=0.5),plot.margin = margin(5.5,5.5,20,5.5,"pt"))
 
 ggsave("NDVI_anoms_boxplot_with_letters_wet-forest.png", path = pathShare, height=6, width=12, units="in", dpi = 320)
+
+######################
+#barplot
+######################
+
+grow_merge <- grow_merge %>% distinct(severity, date, .keep_all = TRUE)
+
+ggplot(data=grow_merge, aes(x=as.factor(severity), fill=as.factor(severity)))+
+  geom_bar() +
+  scale_fill_manual(name="Category", values=c("None"="gray50", "D0"="yellow", "D1"="burlywood","D2"="darkorange", "D3"="red"))
+
+
+ggplot(data=grow_merge[grow_merge$severity!="None",], aes(x=as.factor(severity), fill=as.factor(severity)))+
+  geom_bar() +
+  scale_fill_manual(name="Category", values=c("D0"="yellow", "D1"="burlywood","D2"="darkorange", "D3"="red"))
