@@ -10,9 +10,9 @@ pathShare <- file.path(path.google, "../Shared drives/Urban Ecological Drought/M
 pathShare2 <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/tables")
 pathShare3 <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/ESA_2025_NDVI_Monitoring_Poster")
 ######################
-usdmcat <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_categorical_county_data_2001-2024.csv")) #usdm chicago region cumulative data
+#usdmcat <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_categorical_county_data_2001-2024.csv")) #usdm chicago region cumulative data
 
-#usdmcum <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_county_data_2001-2024.csv")) #usdm chicago region cumulative data
+usdmcum <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_county_data_2001-2024.csv")) #usdm chicago region cumulative data
 #grow_norms <-read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_growing_season_norms.csv")) #normals
 #growyrs <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_growing_season_yrs.csv")) #individual years
 
@@ -36,10 +36,10 @@ coArea <- c(3917450609.094, 1494102678.262, 4472919440.23, 1571636669.879, 24549
 names(coArea) <- c("Will County","Kendall County","Cook County","DuPage County","Kane County","Lake County","McHenry County")
 coWeights <- coArea/sum(coArea)
 
-usdmcat$County <- factor(usdmcat$County, levels = c("Will County","Kendall County","Cook County","DuPage County","Kane County","Lake County","McHenry County"))
+usdmcum$County <- factor(usdmcum$County, levels = c("Will County","Kendall County","Cook County","DuPage County","Kane County","Lake County","McHenry County"))
 usdm_county <- data.frame()
-for (county in unique(usdmcat$County)){
-  usdmInd <- usdmcat[usdmcat$County==county,]
+for (county in unique(usdmcum$County)){
+  usdmInd <- usdmcum[usdmcum$County==county,]
   usdmInd$None <- usdmInd$None*coWeights[county]
   usdmInd$D0 <- usdmInd$D0*coWeights[county]
   usdmInd$D1 <- usdmInd$D1*coWeights[county]
@@ -49,7 +49,7 @@ for (county in unique(usdmcat$County)){
   usdm_county <- rbind(usdm_county, usdmInd)
 }
 
-usdmcat <- usdm_county %>% group_by(ValidStart, ValidEnd) %>%
+usdmcum <- usdm_county %>% group_by(ValidStart, ValidEnd) %>%
   summarise_at(vars(None, D0, D1, D2, D3, D4),
                sum) %>%
   ungroup()
@@ -57,7 +57,7 @@ usdmcat <- usdm_county %>% group_by(ValidStart, ValidEnd) %>%
 ######################
 #loop to add date and deviation column
 ######################
-usdmcat$date <- as.Date(usdmcat$ValidStart)
+usdmcum$date <- as.Date(usdmcum$ValidStart)
 
 df <- data.frame()
 for (LC in unique(growyrs$type)){
@@ -74,9 +74,9 @@ for (LC in unique(growyrs$type)){
 }
 
 
-#grow_subset <- df[df$date %in% usdmcat$start,]
+#grow_subset <- df[df$date %in% usdmcum$start,]
 
-grow_merge <- merge(x=df, y=usdmcat, by="date", all.x=F, all.y=T)
+grow_merge <- merge(x=df, y=usdmcum, by="date", all.x=F, all.y=T)
 
 grow_merge <- grow_merge %>% pivot_longer(cols = c(11:16), names_to = "severity", values_to = "percentage") #combining index columns
 
@@ -84,12 +84,16 @@ grow_merge <- grow_merge %>% pivot_longer(cols = c(11:16), names_to = "severity"
 #subset data to 50% or above in category
 ######################
 
-grow_merge <- grow_merge[grow_merge$percentage>50,]
 grow_merge <- grow_merge[!is.na(grow_merge$yday),]
-grow_merge$severity <- factor(grow_merge$severity, levels=c("None", "D0", "D1", "D2", "D3"))
-
+grow_merge <- grow_merge[grow_merge$percentage>50,]
 grow_merge <- grow_merge[grow_merge$type!="forest",]
 grow_merge$type[grow_merge$type=="forest-wet"] <- "forest"
+grow_merge$severity <- factor(grow_merge$severity, levels=c("None", "D0", "D1", "D2", "D3"), ordered=TRUE)
+
+grow_merge <- grow_merge %>% group_by(type, date) %>%
+  filter(severity == max(severity)) %>%
+  ungroup()
+
 grow_merge$type <- factor(grow_merge$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 #grow_merge$type <- factor(grow_merge$type, levels = c("crop", "forest", "forest-wet","grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
@@ -216,8 +220,10 @@ d3letters <- rownames_to_column(d3letters, "type")
 sev_letters <- rbind(noneletters, d0letters, d1letters, d2letters, d3letters)
 sev_letters$Letters <- toupper(sev_letters$Letters)
 sev_letters$type <- str_replace(sev_letters$type, "^urban", "urban-")
-# grow_merge_sev <- group_by(grow_merge, severity, type) %>%
-#   summarise(meandev=mean(deviation),sd=sd(deviation))
+
+# grow_merge_sev <- group_by(grow_merge, severity, type) 
+# 
+# grow_merge_sev <- grow_merge_sev %>% summarise(meandev=mean(deviation),sd=sd(deviation))
 
 grow_sum <- grow_sum %>% inner_join(sev_letters, by=c("type", "severity"))
 grow_sum <- grow_sum %>% rename(Tukey2 = Letters)
