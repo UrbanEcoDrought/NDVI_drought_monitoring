@@ -1,1 +1,11 @@
-
+#NDVI Spatial Analysis
+- 00_Calc_GAMM_posteriors_spatial_norms.R - same script to calculate posterior distributions of GAM objects, but updated to account for variables in spatial GAMs
+- 00_landsat5_landsat7_spatial_data_acquisition.R - getting raw historical NDVI data from landsat 5 and 7, similar to aggregated version but is NOT mosaicked this time
+- 00_landsat8_landsat9_spatial_data_acquisition.R - getting raw NDVI from landsat 8 and 9
+- 01_all_satellites_raw_data_save.R - takes tif files from previous scripts and converts it to csv file with x and y coordinates
+- 02_pixel_by_pixel_mission_gams.R - first GAM to harmonize/reproject NDVI data, loops through each unique xy pair
+- 03_pixel_by_pixel_norms.R - norms using same method of looping through each coord pair
+- 04_pixel_by_pixel_year_splines.R - individual year splines by looping through each coord pair, lots of gaps in data
+- 05_norms_looped_by_yday.R - norms calculated by looping through each day of year, x and y are in the GAM spline eq.
+- 06_year_splines_yday_looped_.R - year splines calculated by looping through yday for each year, GAM is a function of x,y
+- 07_yday_looped_anomalies.R - calculates NDVI anomalies based on yday loop method and saves into csv
