@@ -1,9 +1,11 @@
 # ==============================================================================
-# PHASE 4: ANOMALY CALCULATION WITH UNCERTAINTY PROPAGATION
+# PHASE 6: ANOMALY CALCULATION WITH UNCERTAINTY PROPAGATION
 # ==============================================================================
 # Purpose: Calculate vegetation anomalies as deviations from climatological norms
-# Input: Climatology (Phase 2) and year-specific splines (Phase 3)
+# Input: Baseline (Phase 2) and year-specific splines (Phase 4)
 # Output: Anomalies with uncertainty (pixel_id, year, yday, anomaly, anomaly_se, z_score, p_value)
+# Note: Uses GAM predictions with standard errors (not full posterior distributions)
+#       For posterior-based uncertainty, use post.distns() from 00_gam_utility_functions.R
 # ==============================================================================
 
 library(dplyr)
@@ -12,7 +14,7 @@ library(dplyr)
 source("00_setup_paths.R")
 hls_paths <- get_hls_paths()
 
-cat("=== PHASE 4: ANOMALY CALCULATION ===\n\n")
+cat("=== PHASE 6: ANOMALY CALCULATION ===\n\n")
 
 # ==============================================================================
 # CONFIGURATION
@@ -20,7 +22,7 @@ cat("=== PHASE 4: ANOMALY CALCULATION ===\n\n")
 
 config <- list(
   # Input files
-  climatology_file = file.path(hls_paths$gam_models, "conus_4km_climatology.csv"),
+  baseline_file = file.path(hls_paths$gam_models, "conus_4km_baseline.csv"),
   year_splines_file = file.path(hls_paths$gam_models, "conus_4km_year_splines.csv"),
 
   # Output
@@ -36,7 +38,7 @@ ensure_directory(hls_paths$gam_models)
 ensure_directory(config$anomaly_archive)
 
 cat("Configuration:\n")
-cat("  Climatology input:", config$climatology_file, "\n")
+cat("  Baseline input:", config$baseline_file, "\n")
 cat("  Year splines input:", config$year_splines_file, "\n")
 cat("  Output:", config$output_file, "\n")
 cat("  Significance level:", config$alpha_level, "\n\n")
@@ -47,26 +49,27 @@ cat("  Significance level:", config$alpha_level, "\n\n")
 
 #' Calculate anomalies with uncertainty propagation
 #'
-#' @param climatology_df Climatological norms (pixel_id, yday, norm_mean, norm_se)
+#' @param baseline_df Baseline norms (pixel_id, yday, norm_mean, norm_se)
 #' @param year_splines_df Year-specific splines (pixel_id, year, yday, year_mean, year_se)
 #' @return Anomaly dataframe
-calculate_anomalies <- function(climatology_df, year_splines_df) {
+calculate_anomalies <- function(baseline_df, year_splines_df) {
 
   cat("=== CALCULATING ANOMALIES ===\n\n")
 
-  cat("Joining year splines with climatology...\n")
+  cat("Joining year splines with baseline...\n")
 
   # Join on pixel_id and yday
   anomaly_df <- year_splines_df %>%
-    left_join(climatology_df, by = c("pixel_id", "yday"), suffix = c("_year", "_norm"))
+    left_join(baseline_df, by = c("pixel_id", "yday"), suffix = c("_year", "_norm"))
 
   cat("  Records before join:", nrow(year_splines_df), "\n")
   cat("  Records after join:", nrow(anomaly_df), "\n\n")
 
-  # Check for missing norms
-  n_missing_norms <- sum(is.na(anomaly_df$norm_mean))
-  if (n_missing_norms > 0) {
-    cat("  ⚠ Warning:", n_missing_norms, "records missing climatology (will be excluded)\n")
+  # Check for missing baseline
+  n_missing_baseline <- sum(is.na(anomaly_df$norm_mean))
+  if (n_missing_baseline > 0) {
+    cat("  ⚠ Warning:", n_missing_baseline,
+        "records missing baseline (will be excluded)\n")
     anomaly_df <- anomaly_df %>% filter(!is.na(norm_mean))
   }
 
@@ -235,28 +238,29 @@ process_anomalies <- function(config) {
 
   cat("=== STARTING ANOMALY PROCESSING ===\n\n")
 
-  # Load climatology
-  cat("Loading climatology from Phase 2...\n")
-  if (!file.exists(config$climatology_file)) {
-    stop("Climatology file not found. Run Phase 2 first.")
+  # Load baseline
+  cat("Loading baseline from Phase 2...\n")
+  if (!file.exists(config$baseline_file)) {
+    stop("Baseline file not found. Run Phase 2 first.")
   }
 
-  climatology_df <- read.csv(config$climatology_file, stringsAsFactors = FALSE)
-  cat("  Records:", nrow(climatology_df), "\n")
-  cat("  Pixels:", length(unique(climatology_df$pixel_id)), "\n\n")
+  baseline_df <- read.csv(config$baseline_file, stringsAsFactors = FALSE)
+  cat("  Records:", nrow(baseline_df), "\n")
+  cat("  Pixels:", length(unique(baseline_df$pixel_id)), "\n\n")
 
   # Load year splines
-  cat("Loading year-specific splines from Phase 3...\n")
+  cat("Loading year-specific splines from Phase 4...\n")
   if (!file.exists(config$year_splines_file)) {
-    stop("Year splines file not found. Run Phase 3 first.")
+    stop("Year splines file not found. Run Phase 4 first.")
   }
 
   year_splines_df <- read.csv(config$year_splines_file, stringsAsFactors = FALSE)
   cat("  Records:", nrow(year_splines_df), "\n")
-  cat("  Pixel-years:", length(unique(paste(year_splines_df$pixel_id, year_splines_df$year))), "\n\n")
+  cat("  Pixel-years:",
+      length(unique(paste(year_splines_df$pixel_id, year_splines_df$year))), "\n\n")
 
   # Calculate anomalies
-  anomaly_df <- calculate_anomalies(climatology_df, year_splines_df)
+  anomaly_df <- calculate_anomalies(baseline_df, year_splines_df)
 
   # Summarize
   year_summary <- summarize_anomalies(anomaly_df)
@@ -283,9 +287,9 @@ process_anomalies <- function(config) {
 cat("=== READY TO CALCULATE ANOMALIES ===\n")
 
 # Check if running as main script (not being sourced)
-if (!interactive() || exists("run_phase4")) {
+if (!interactive() || exists("run_phase6")) {
 
-  cat("\n=== EXECUTING PHASE 4: CALCULATE ANOMALIES ===\n")
+  cat("\n=== EXECUTING PHASE 6: CALCULATE ANOMALIES ===\n")
   cat("Started at:", as.character(Sys.time()), "\n\n")
 
   # Run anomaly calculation
@@ -294,12 +298,12 @@ if (!interactive() || exists("run_phase4")) {
   elapsed <- as.numeric(difftime(Sys.time(), start_time, units = "mins"))
 
   # Final summary
-  cat("\n=== PHASE 4 COMPLETE ===\n")
+  cat("\n=== PHASE 6 COMPLETE ===\n")
   cat("Total time:", round(elapsed, 1), "minutes\n")
   cat("Output saved to:", config$output_file, "\n")
 
 } else {
-  cat("\n=== PHASE 4 FUNCTIONS LOADED ===\n")
+  cat("\n=== PHASE 6 FUNCTIONS LOADED ===\n")
   cat("Ready to calculate anomalies by joining baseline and year splines\n")
   cat("Estimated time: ~5 minutes\n")
   cat("Output will be saved to:", config$output_file, "\n\n")
