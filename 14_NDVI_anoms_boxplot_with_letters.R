@@ -10,6 +10,7 @@ pathShare <- file.path(path.google, "../Shared drives/Urban Ecological Drought/M
 pathShare2 <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/tables")
 pathShare3 <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/ESA_2025_NDVI_Monitoring_Poster")
 ######################
+#usdmcat <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_categorical_county_data_2001-2024.csv")) #usdm chicago region cumulative data
 
 usdmcum <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/USDM_county_data_2001-2024.csv")) #usdm chicago region cumulative data
 #grow_norms <-read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_growing_season_norms.csv")) #normals
@@ -83,12 +84,16 @@ grow_merge <- grow_merge %>% pivot_longer(cols = c(11:16), names_to = "severity"
 #subset data to 50% or above in category
 ######################
 
-grow_merge <- grow_merge[grow_merge$percentage>50,]
 grow_merge <- grow_merge[!is.na(grow_merge$yday),]
-grow_merge$severity <- factor(grow_merge$severity, levels=c("None", "D0", "D1", "D2", "D3"))
-
+grow_merge <- grow_merge[grow_merge$percentage>50,]
 grow_merge <- grow_merge[grow_merge$type!="forest",]
 grow_merge$type[grow_merge$type=="forest-wet"] <- "forest"
+grow_merge$severity <- factor(grow_merge$severity, levels=c("None", "D0", "D1", "D2", "D3"), ordered=TRUE)
+
+grow_merge <- grow_merge %>% group_by(type, date) %>%
+  filter(severity == max(severity)) %>%
+  ungroup()
+
 grow_merge$type <- factor(grow_merge$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 #grow_merge$type <- factor(grow_merge$type, levels = c("crop", "forest", "forest-wet","grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
@@ -102,17 +107,25 @@ anovUrbLow <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-l
 tukeyurblow <- TukeyHSD(anovUrbLow, conf.level=0.95)
 urblowletters <- multcompLetters4(anovUrbLow, tukeyurblow)
 urblowletters <- as.data.frame.list(urblowletters$severity)
+urblowletters <- rownames_to_column(urblowletters, "type")
+urblowletters$type <- factor(urblowletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urblowletters <- arrange(urblowletters, type)
 
 anovcrop <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="crop",])
 tukeycrop <- TukeyHSD(anovcrop, conf.level=0.95)
 cropletters <- multcompLetters4(anovcrop, tukeycrop)
 cropletters <- as.data.frame.list(cropletters$severity)
+cropletters <- rownames_to_column(cropletters, "type")
+cropletters$type <- factor(cropletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+cropletters <- arrange(cropletters, type)
 
 anovForest <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="forest",])
 tukeyforest <- TukeyHSD(anovForest, conf.level=0.95)
 forestletters <- multcompLetters4(anovForest, tukeyforest)
 forestletters <- as.data.frame.list(forestletters$severity)
-forestletters <- c("a", "b", "ab", "ab", "ab")
+forestletters <- rownames_to_column(forestletters, "type")
+forestletters$type <- factor(forestletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+forestletters <- arrange(forestletters, type)
 
 # anovForestwet <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="forest-wet",])
 # tukeyforestwet <- TukeyHSD(anovForestwet, conf.level=0.95)
@@ -123,26 +136,38 @@ anovgrass <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="grasslan
 tukeygrass <- TukeyHSD(anovgrass, conf.level=0.95)
 grassletters <- multcompLetters4(anovgrass, tukeygrass)
 grassletters <- as.data.frame.list(grassletters$severity)
+grassletters <- rownames_to_column(grassletters, "type")
+grassletters$type <- factor(grassletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+grassletters <- arrange(grassletters, type)
 
 anovurbmed <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-medium",])
 tukeyurbmed <- TukeyHSD(anovurbmed, conf.level=0.95)
 urbmedletters <- multcompLetters4(anovurbmed, tukeyurbmed)
 urbmedletters <- as.data.frame.list(urbmedletters$severity)
+urbmedletters <- rownames_to_column(urbmedletters, "type")
+urbmedletters$type <- factor(urbmedletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urbmedletters <- arrange(urbmedletters, type)
 
 anovurbhi <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-high",])
 tukeyurbhi <- TukeyHSD(anovurbhi, conf.level=0.95)
 urbhiletters <- multcompLetters4(anovurbhi, tukeyurbhi)
 urbhiletters <- as.data.frame.list(urbhiletters$severity)
+urbhiletters <- rownames_to_column(urbhiletters, "type")
+urbhiletters$type <- factor(urbhiletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urbhiletters <- arrange(urbhiletters, type)
 
 anovurbop <- aov(deviation~ severity, data=grow_merge[grow_merge$type=="urban-open",])
 tukeyurbop <- TukeyHSD(anovurbop, conf.level=0.95)
 urbopletters <- multcompLetters4(anovurbop, tukeyurbop)
 urbopletters <- as.data.frame.list(urbopletters$severity)
+urbopletters <- rownames_to_column(urbopletters, "type")
+urbopletters$type <- factor(urbopletters$type, levels = c("None", "D0", "D1", "D2", "D3"))
+urbopletters <- arrange(urbopletters, type)
 
 grow_sum <- group_by(grow_merge, type, severity) %>% 
   summarise(mean_anom=mean(deviation),sd=sd(deviation))
 
-letter_list <- c(cropletters$Letters, forestletters, grassletters$Letters, urbopletters$Letters, urblowletters$Letters, urbmedletters$Letters, urbhiletters$Letters)
+letter_list <- c(cropletters$Letters, forestletters$Letters, grassletters$Letters, urbopletters$Letters, urblowletters$Letters, urbmedletters$Letters, urbhiletters$Letters)
 grow_sum$Tukey1 <- letter_list
 
 ######################
@@ -195,8 +220,10 @@ d3letters <- rownames_to_column(d3letters, "type")
 sev_letters <- rbind(noneletters, d0letters, d1letters, d2letters, d3letters)
 sev_letters$Letters <- toupper(sev_letters$Letters)
 sev_letters$type <- str_replace(sev_letters$type, "^urban", "urban-")
-# grow_merge_sev <- group_by(grow_merge, severity, type) %>%
-#   summarise(meandev=mean(deviation),sd=sd(deviation))
+
+# grow_merge_sev <- group_by(grow_merge, severity, type) 
+# 
+# grow_merge_sev <- grow_merge_sev %>% summarise(meandev=mean(deviation),sd=sd(deviation))
 
 grow_sum <- grow_sum %>% inner_join(sev_letters, by=c("type", "severity"))
 grow_sum <- grow_sum %>% rename(Tukey2 = Letters)
@@ -209,14 +236,29 @@ write.csv(grow_sum, file.path(pathShare2, "boxplot_anomalies_tukey_table.csv"), 
 ######################
 
 ggplot()+ #boxplots by drought category for each LC type
-  geom_boxplot(data=grow_merge,aes(x=severity, y=deviation, fill=severity)) + ylab("NDVI Anomaly") + xlab("> 50% Coverage") +
+  geom_boxplot(data=grow_merge,aes(x=severity, y=deviation, fill=severity)) + ylab("NDVI Anomaly") + xlab(NULL) +
   scale_fill_manual(name="Category", values=c("None"="gray50", "D0"="yellow", "D1"="burlywood","D2"="darkorange", "D3"="red"))+
   geom_text(data=grow_sum, aes(label=Tukey1, x=severity,y=mean_anom+sd),size = 3, vjust=-2, hjust =-1)+
   geom_text(data=grow_sum, aes(label=Tukey2, x=severity,y=mean_anom-sd),size = 3, vjust=2, hjust =-1)+
   facet_wrap(~type)+
   geom_hline(yintercept=0, linetype="dashed")+
-  labs(caption = "lowercase = drought category within land cover class \n uppercase = drought category across classes") +
+  labs(caption = "lowercase = effect of drought severity on NDVI anomalies within a given land cover class \nuppercase = effect of land cover type on NDVI anomalies within a given drought category") +
   ylim(-0.2,0.2) + theme_bw(15) + theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),plot.caption.position="plot",
                                         plot.caption = element_text(hjust=0,vjust=0.5),plot.margin = margin(5.5,5.5,20,5.5,"pt"))
 
 ggsave("NDVI_anoms_boxplot_with_letters_wet-forest.png", path = pathShare, height=6, width=12, units="in", dpi = 320)
+
+######################
+#barplot
+######################
+
+grow_merge <- grow_merge %>% distinct(severity, date, .keep_all = TRUE)
+
+ggplot(data=grow_merge, aes(x=as.factor(severity), fill=as.factor(severity)))+
+  geom_bar() +
+  scale_fill_manual(name="Category", values=c("None"="gray50", "D0"="yellow", "D1"="burlywood","D2"="darkorange", "D3"="red"))
+
+
+ggplot(data=grow_merge[grow_merge$severity!="None",], aes(x=as.factor(severity), fill=as.factor(severity)))+
+  geom_bar() +
+  scale_fill_manual(name="Category", values=c("D0"="yellow", "D1"="burlywood","D2"="darkorange", "D3"="red"))

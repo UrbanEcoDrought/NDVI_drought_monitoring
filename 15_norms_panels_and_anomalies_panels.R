@@ -8,6 +8,162 @@ google.drive <- Sys.getenv("GOOGLE_DRIVE")
 path.google <- ("~/Google Drive/My Drive/")
 pathShare <- file.path(path.google, "../Shared drives/Urban Ecological Drought/Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/figures")
 
+yrs <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_individual_years_post_GAM_with_forest-wet.csv")) #individual years
+yrs <- yrs[yrs$type!="forest",]
+yrs$type[yrs$type=="forest-wet"] <- "forest"
+yrs$type <- factor(yrs$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+
+norms <-read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_norms_all_LC_types_with_wet-forest.csv")) #normals
+norms <- norms[norms$type!="forest",]
+norms$type[norms$type=="forest-wet"] <- "forest"
+norms$type <- factor(norms$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+
+yrsderivs <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_individual_years_derivs_GAM_with_forest-wet.csv")) #individual years derivatives
+yrsderivs <- yrsderivs[yrsderivs$type!="forest",]
+yrsderivs$type[yrsderivs$type=="forest-wet"] <- "forest"
+yrsderivs$type <- factor(yrsderivs$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+
+normsderivs <-read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_norms_derivatives_with_forest-wet.csv")) #normals derivatives
+normsderivs <- normsderivs[normsderivs$type!="forest",]
+normsderivs$type[normsderivs$type=="forest-wet"] <- "forest"
+normsderivs$type <- factor(normsderivs$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
+
+yrs_merge <- yrs %>% inner_join(norms, by= c("type", "yday"), suffix = c("_yrs", "_norm")) 
+yrs_merge$mean_anoms <- yrs_merge$mean_yrs - yrs_merge$mean_norm
+yrs_merge$upr_anoms <- yrs_merge$upr_yrs - yrs_merge$mean_norm
+yrs_merge$lwr_anoms <- yrs_merge$lwr_yrs - yrs_merge$mean_norm
+#yrs_merge <- yrs_merge %>% pivot_longer(cols=c("mean_yrs","mean_anoms"), names_to =("graph type"), values_to = "mean")
+
+yrsderivs_merge <- yrsderivs %>% inner_join(normsderivs, by= c("type", "yday"), suffix = c("_yrs", "_norm")) 
+yrsderivs_merge$mean_anoms <- yrsderivs_merge$mean_yrs - yrsderivs_merge$mean_norm
+yrsderivs_merge$upr_anoms <- yrsderivs_merge$upr_yrs - yrsderivs_merge$mean_norm
+yrsderivs_merge$lwr_anoms <- yrsderivs_merge$lwr_yrs - yrsderivs_merge$mean_norm
+yrsderivs_merge <- yrsderivs_merge[, !names(yrsderivs_merge) %in% c("sig_yrs", "var_yrs", "sig_norm", "var_norm", "mean_yrs", "upr_yrs","lwr_yrs")]
+
+# plot --------------------------------------------------------------------
+yrs2005 <- yrs_merge[yrs_merge$year==2005,]
+yrs2012 <- yrs_merge[yrs_merge$year==2012,]
+yrs2023 <- yrs_merge[yrs_merge$year==2023,]
+
+yrs2005$date <- as.Date(yrs2005$yday, origin="2004-12-31")
+yrs2012$date <- as.Date(yrs2012$yday, origin="2011-12-31")
+yrs2023$date <- as.Date(yrs2023$yday, origin="2022-12-31")
+
+yrsderivs2005 <- yrsderivs_merge[yrsderivs_merge$year==2005,]
+yrsderivs2012 <- yrsderivs_merge[yrsderivs_merge$year==2012,]
+yrsderivs2023 <- yrsderivs_merge[yrsderivs_merge$year==2023,]
+
+yrsderivs2005$date <- as.Date(yrsderivs2005$yday, origin="2004-12-31")
+yrsderivs2012$date <- as.Date(yrsderivs2012$yday, origin="2011-12-31")
+yrsderivs2023$date <- as.Date(yrsderivs2023$yday, origin="2022-12-31")
+
+p1 <- ggplot()+
+  geom_rect(aes(xmin=as.Date("2005-06-14"), xmax=as.Date("2005-12-31"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_ribbon(data=yrs2005, aes(x=date, ymin=lwr_anoms, ymax=upr_anoms,fill=type), alpha=0.2) +
+  geom_line(data=yrs2005, aes(x=date, y=mean_anoms, color=type),linewidth=0.7)+
+  ggtitle("2005 NDVI Anomalies") +
+  scale_x_date(date_breaks= "1 month", expand=c(0,0),date_labels = ("%b %d")) +
+  ylim(-0.2,0.2)+ylab("NDVI anomalies")+
+  geom_hline(yintercept=0, linetype="dotted")+
+  theme_bw(20)+
+  scale_color_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F","grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))+
+  scale_fill_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F", "grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))
+p1 <- p1 +  theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1), legend.position = "none",plot.title = element_text(vjust=-1))
+
+p2 <- ggplot()+
+  geom_rect(aes(xmin=as.Date("2005-06-14"), xmax=as.Date("2005-12-31"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_ribbon(data=yrsderivs2005, aes(x=date, ymin=lwr_anoms, ymax=upr_anoms,fill=type), alpha=0.2) +
+  geom_line(data=yrsderivs2005, aes(x=date, y=mean_anoms, color=type),linewidth=0.7)+
+  ggtitle("2005 NDVI Derivative Anomalies") +
+  scale_x_date(date_breaks= "1 month",expand=c(0,0), date_labels = ("%b %d")) +
+  ylim(-0.01,0.01)+ylab("Deriv anomalies")+
+  geom_hline(yintercept=0, linetype="dotted")+
+  theme_bw(20)+
+  scale_color_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F","grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))+
+  scale_fill_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F", "grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))
+p2 <- p2 +  theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1),legend.position = "none",plot.title = element_text(vjust=-1))
+
+#########
+#2012
+#########
+
+p3 <- ggplot()+
+  geom_rect(aes(xmin=as.Date("2012-06-26"), xmax=as.Date("2012-09-03"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_rect(aes(xmin=as.Date("2012-10-09"), xmax=as.Date("2012-10-29"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_rect(aes(xmin=as.Date("2012-11-27"), xmax=as.Date("2012-12-31"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_ribbon(data=yrs2012, aes(x=date, ymin=lwr_anoms, ymax=upr_anoms,fill=type), alpha=0.2) +
+  geom_line(data=yrs2012, aes(x=date, y=mean_anoms, color=type),linewidth=0.7)+
+  ggtitle("2012 NDVI Anomalies") +
+  scale_x_date(date_breaks= "1 month",expand=c(0,0),date_labels = ("%b %d")) +
+  ylim(-0.25,0.27)+ylab("NDVI anomalies")+
+  geom_hline(yintercept=0, linetype="dotted")+
+  theme_bw(20)+
+  scale_color_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F","grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))+
+  scale_fill_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F", "grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))
+p3 <- p3+ theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1),legend.position = "none",plot.title = element_text(vjust=-1))
+
+p4 <- ggplot()+
+  geom_rect(aes(xmin=as.Date("2012-06-26"), xmax=as.Date("2012-09-03"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_rect(aes(xmin=as.Date("2012-10-09"), xmax=as.Date("2012-10-29"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_rect(aes(xmin=as.Date("2012-11-27"), xmax=as.Date("2012-12-31"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  geom_ribbon(data=yrsderivs2012, aes(x=date, ymin=lwr_anoms, ymax=upr_anoms,fill=type), alpha=0.2) +
+  geom_line(data=yrsderivs2012, aes(x=date, y=mean_anoms, color=type),linewidth=0.7)+
+  ggtitle("2012 NDVI Derivative Anomalies") +
+  scale_x_date(date_breaks= "1 month",expand=c(0,0),date_labels = ("%b %d")) +
+  ylim(-0.01,0.01)+ylab("Deriv anomalies")+
+  geom_hline(yintercept=0, linetype="dotted")+
+  theme_bw(20)+
+  scale_color_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F","grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))+
+  scale_fill_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F", "grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))
+p4 <- p4 +theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1),legend.position = "none",plot.title = element_text(vjust=-1))
+
+#########
+#2023
+#########
+
+p5 <- ggplot()+
+  geom_rect(aes(xmin=as.Date("2023-05-30"), xmax=as.Date("2023-07-17"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  #geom_rect(aes(xmin=as.Date("2023-11-21"), xmax=as.Date("2023-12-05"),ymin=-Inf,ymax=Inf), fill='yellow', alpha= 0.3)+
+  geom_ribbon(data=yrs2023, aes(x=date, ymin=lwr_anoms, ymax=upr_anoms,fill=type), alpha=0.2) +
+  geom_line(data=yrs2023, aes(x=date, y=mean_anoms, color=type),linewidth=0.7)+
+  ggtitle("2023 NDVI Anomalies") +
+  scale_x_date(date_breaks= "1 month",expand=c(0,0),date_labels = ("%b %d")) +
+  ylim(-0.2,0.2)+ylab("NDVI anomalies")+
+  geom_hline(yintercept=0, linetype="dotted")+
+  theme_bw(20)+
+  scale_color_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F","grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))+
+  scale_fill_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F", "grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))
+p5 <- p5 + theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1),legend.position = "none",plot.title = element_text(vjust=-1))
+
+p6 <- ggplot()+
+  geom_rect(aes(xmin=as.Date("2023-05-30"), xmax=as.Date("2023-07-17"),ymin=-Inf,ymax=Inf), fill='#f4d76c', alpha= 0.3)+
+  #geom_rect(aes(xmin=as.Date("2023-11-21"), xmax=as.Date("2023-12-05"),ymin=-Inf,ymax=Inf), fill='yellow', alpha= 0.3)+
+  geom_ribbon(data=yrsderivs2023, aes(x=date, ymin=lwr_anoms, ymax=upr_anoms,fill=type), alpha=0.2) +
+  geom_line(data=yrsderivs2023, aes(x=date, y=mean_anoms, color=type),linewidth=0.7)+
+  ggtitle("2023 NDVI Derivative Anomalies") +
+  scale_x_date(date_breaks= "1 month",expand=c(0,0),date_labels = ("%b %d")) +
+  ylim(-0.01,0.01)+ylab("Deriv anomalies")+
+  geom_hline(yintercept=0, linetype="dotted")+
+  theme_bw(20)+
+  scale_color_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F","grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))+
+  scale_fill_manual(name="type", values=c("crop"="#DCD939", "forest"="#68AB5F", "grassland"="#CCB879","urban-high"="#AB0000", "urban-medium"="#EB0000", "urban-low"="#D99282","urban-open"="#DEC5C5"))
+p6 <- p6 +theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1), legend.position = "bottom",plot.title = element_text(vjust=-1))
+
+plot_grid(p1,p2,p3,p4,p5,p6, align = "hv",ncol=2)
+
+ggpubr::ggarrange(
+  p1, p2, p3, p4 ,p5, p6,# list of plots
+  #labels = c("Years", "Anomalies"), # labels
+  common.legend = TRUE, # COMMON LEGEND
+  legend = "bottom", # legend position
+  align = "hv", # Align them both, horizontal and vertical
+  ncol = 2,
+  nrow= 3# number of rows
+)
+
+ggsave("ESA_poster_NDVI_anoms_and_derivs_panels_figure_5.png", path = pathShare3, height=12, width=21, units="in", dpi = 320)
+ggsave("NDVI_anoms_and_deriv_anoms_panels_case_study_years.png", path = pathShare, height=12, width=21, units="in", dpi = 320)
+
 ######################
 
 #yrs <- read.csv(file.path(google.drive, "data/NDVI_drought_monitoring/k=12_individual_years_post_GAM.csv")) #individual years
@@ -54,12 +210,14 @@ yrsderivs_merge <- yrsderivs_merge[, !names(yrsderivs_merge) %in% c("sig_yrs", "
 grow_dates <- read.csv(file.path(google.drive, "Manuscript - Urban Drought NDVI Monitoring by Land Cover Class/tables/growing_season_dates_table.csv"))
 grow_dates$yday_start <- lubridate::yday(as.Date(grow_dates$start, format="%b %d"))
 grow_dates$yday_end <- lubridate::yday(as.Date(grow_dates$end, format="%b %d"))
+grow_dates$type <- factor(grow_dates$type, levels = c("crop", "forest", "grassland", "urban-open", "urban-low", "urban-medium", "urban-high"))
 
 df_full <- yrs_merge %>% inner_join(yrsderivs_merge, by=c("type", "yday", "year"), suffix=c("yrs", "deriv"))
 df_full <- df_full %>% pivot_longer(cols=-c("yday","type", "year", "mean_normyrs", "lwr_normyrs", "upr_normyrs", "mean_normderiv", "lwr_normderiv", "upr_normderiv"), names_to = c("pos","graph_type"), names_sep = "_", values_to = "value")
 df_full$graph_type[df_full$graph_type=="yrs"] <- "NDVI"
 df_full$graph_type[df_full$graph_type=="anomsyrs"] <- "Anoms"
 df_full$graph_type[df_full$graph_type=="anomsderiv"] <- "Deriv anoms"
+df_full <- df_full %>% pivot_wider(names_from = pos, values_from = value)
 
 dfNormDupe <- df_full[df_full$year==2013 & df_full$graph_type=="NDVI", c("yday", "type", "year",  "graph_type", "mean_normyrs", "lwr_normyrs", "upr_normyrs")]
 dfNormDupe$year <- "normal"
@@ -73,9 +231,17 @@ dfHline$graph_type <- factor(dfHline$graph_type, levels=c("NDVI", "Anoms", "Deri
 
 ggplot(data=df_full2[df_full2$year %in% c(2005, 2012, 2023, "normal"),]) +
   facet_grid(graph_type~type, scales="free_y") +
+  geom_rect(data=grow_dates, aes(xmin=yday_start, xmax=yday_end,ymin=-Inf,ymax=Inf), fill="lightblue", alpha= 0.3)+
   geom_ribbon(aes(x=yday, ymin=lwr, ymax=upr, fill=year), alpha=0.5) +
   geom_line(aes(x=yday, y=mean, color=year)) +
-  geom_hline(data=dfHline, aes(yintercept=yint), linetype="dashed", color="black")
+  geom_hline(data=dfHline, aes(yintercept=yint), linetype="dashed", color="black")+
+  scale_color_manual(name="year", values=c("normal" = "black", "2005"="#D55E00", "2012"="#E69F00", "2023"="#CC79A7")) +
+  scale_fill_manual(name="year", values=c("normal" = "black", "2005"="#D55E00", "2012"="#E69F00", "2023"="#CC79A7")) +
+  ylab("NDVI")+
+  scale_x_continuous(name="Day of Year", expand=c(0,0), breaks=day.labels$yday[seq(2, 12, by=3)], labels=day.labels$Text[seq(2, 12, by=3)])+
+  theme_bw(15)+  theme(axis.text.x = element_text(angle = 30, vjust = 1, hjust=1))
+ggsave("years_3X7_panels.png", path = pathShare, height=6, width=12, units="in", dpi = 320)
+
 
 ggplot(data=df_full2[df_full2$year %in% c(2005, 2012, 2023) & df_full2$graph_type %in% c("Anoms", "Deriv anoms"),]) +
   facet_grid(graph_type~year, scales="free_y") +
@@ -85,8 +251,6 @@ ggplot(data=df_full2[df_full2$year %in% c(2005, 2012, 2023) & df_full2$graph_typ
 
 
 #df_full <- df_full %>% pivot_longer(cols=c("lwr_yrs_yrs","lwr_anoms_yrs", "lwr_anoms_deriv"), names_to = ("graph_type"), values_to = "lwr")
-
-df_full <- df_full %>% pivot_wider(names_from = pos, values_from = value)
 
 ######################
 day.labels <- data.frame(Date=seq.Date(as.Date("2023-01-01"), as.Date("2023-12-01"), by="month"))
@@ -100,11 +264,13 @@ ggplot(data=df_full)+
   geom_rect(data=grow_dates, aes(xmin=yday_start, xmax=yday_end,ymin=-Inf,ymax=Inf), fill="lightblue", alpha= 0.3)+
   geom_line(data=df_full[df_full$year %in% c(2005,2012,2023),], aes(x=yday,y=mean,color=as.factor(year)))+
   geom_ribbon(data=df_full[df_full$year %in% c(2005,2012,2023),], aes(x=yday, ymin=lwr, ymax=upr, fill=as.factor(year)), alpha=0.2) +
-  scale_color_manual(name="year", values=c("2005"="#D55E00", "2012"="#E69F00", "2023"="#CC79A7")) +
+  scale_color_manual(name="year", values=c("normal" = "black", "2005"="#D55E00", "2012"="#E69F00", "2023"="#CC79A7")) +
+  scale_fill_manual(name="year", values=c("normal" = "black", "2005"="#D55E00", "2012"="#E69F00", "2023"="#CC79A7")) +
   facet_grid(graph_type~type, scale='free') +
   scale_x_continuous(name="Day of Year", expand=c(0,0), breaks=day.labels$yday[seq(2, 12, by=3)], labels=day.labels$Text[seq(2, 12, by=3)])+
-  ylab("NDVI")+ theme_bw(15)
-ggsave("raw_vs_harmonized_NDVI_mission_curves.png", path = pathShare, height=12, width=12, units="in", dpi = 320)
+  ylab("NDVI")+ theme_bw(15)+
+  theme(axis.text.x = element_text(angle = 20, vjust = 1, hjust=1))
+ggsave("years_3X7_panels.png", path = pathShare, height=6, width=12, units="in", dpi = 320)
 
 
 
