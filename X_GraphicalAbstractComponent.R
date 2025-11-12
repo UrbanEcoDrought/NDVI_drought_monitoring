@@ -50,14 +50,15 @@ head(dfPlot)
 
 seasonLabels <- data.frame(season=c("Spring", "Summer", "Autumn"), yday=lubridate::yday(c("2005-05-25", "2005-08-06", "2005-11-06"))-c(20,0,0), NDVI=0.95)
 
-png(file.path(pathShare, "Abstract-NDVI-simple.png"), width=7.5, height=3, units="in", res=320)
+png(file.path(pathShare, "Abstract-NDVI-simple.png"), width=6, height=2.75, units="in", res=320)
 ggplot(data=dfPlot) +
+  coord_cartesian(xlim=c(lubridate::yday(c("2005-03-20","2005-12-21")))) +
   geom_line(aes(x=yday, y=mean, color=PlotGroup), linewidth = 2) +
   scale_color_manual(name="NDVI Pattern", values=c("forest-normal"="#4dac26", "forest-drought"="#b8e186", "urban-normal"="#d01c8b", "urban-drought"="#f1b6da")) +
   # geom_vline(xintercept=c(lubridate::yday(c("2005-05-25", "2005-08-06", "2005-11-06")))) + # season midpoints 
   geom_vline(xintercept=c(lubridate::yday(c("2005-03-20", "2005-06-21", "2005-09-22", "2005-12-21"))), linetype="dashed") + # season startpoints 
-  geom_text(data=seasonLabels, aes(x=yday, y=NDVI, label = season)) +
-  scale_y_continuous(, name="NDVI", limits=c(0,1)) +
+  # geom_text(data=seasonLabels, aes(x=yday, y=NDVI, label = season)) +
+  scale_y_continuous(name="NDVI", limits=c(0,1)) +
   scale_x_continuous(name="Time of Year") +
   theme_classic() +
   theme(legend.position="bottom", 
