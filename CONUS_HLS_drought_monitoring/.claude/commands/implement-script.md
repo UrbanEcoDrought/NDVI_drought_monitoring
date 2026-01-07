@@ -1,7 +1,6 @@
 ---
 description: Create or modify a pipeline script with 7-stage workflow
 argument-hint: for Script [number] [description]
-allowed-tools: Read, Bash(*), Write, Edit
 ---
 
 # Implement Script Workflow

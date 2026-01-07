@@ -1,6 +1,5 @@
 ---
 description: Load project context and prepare for a new NDVI analysis session
-allowed-tools: Read, Bash(docker exec:*), Bash(ls:*), Bash(git:*)
 ---
 
 # Session Start - Load NDVI Monitoring Context

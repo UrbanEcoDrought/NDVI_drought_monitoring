@@ -1,6 +1,5 @@
 ---
 description: End session properly - commit changes, document running processes
-allowed-tools: Read, Bash(git:*), Bash(docker exec:*), Write
 ---
 
 # Session End Workflow
