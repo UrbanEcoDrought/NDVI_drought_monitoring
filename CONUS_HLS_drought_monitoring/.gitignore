@@ -7,6 +7,13 @@ logs/
 .RData
 .Rproj.user/
 
+# Credentials - never commit
+.netrc
+_netrc
+.env
+*.pem
+*.key
+
 # Locally-installed R packages (e.g. SPEI installed to /workspace/.Rlibs in container)
 .Rlibs/
 

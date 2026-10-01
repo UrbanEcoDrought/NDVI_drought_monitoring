@@ -6,6 +6,13 @@
 .RData
 .Rproj.user/
 
+# Credentials - never commit
+.netrc
+_netrc
+.env
+*.pem
+*.key
+
 # Checkpoint files (RDS and CSV formats)
 *_checkpoint.rds
 *_checkpoint.csv
